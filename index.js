@@ -15,21 +15,38 @@ app.use(session({
    saveUninitialized: true,
 }));
 
-app.post("/form", async (request, response) => {
-   await checkToken(request);
-   let envelopesApi = getEnvelopesApi(request);
-   let envelope = makeEnvelope(request.body.name, request.body.email, request.body.company);
+// app.post("/form", async (request, response) => {
+//    await checkToken(request);
+//    let envelopesApi = getEnvelopesApi(request);
+//    let envelope = makeEnvelope(request.body.name, request.body.email, request.body.company);
 
-   let results = await envelopesApi.createEnvelope(
-       process.env.ACCOUNT_ID, {envelopeDefinition: envelope});
-   console.log("envelope results ", results);
-// Create the recipient view, the Signing Ceremony
-   let viewRequest = makeRecipientViewRequest(request.body.name, request.body.email);
-   results = await envelopesApi.createRecipientView(process.env.ACCOUNT_ID, results.envelopeId,
-       {recipientViewRequest: viewRequest});
+//    let results = await envelopesApi.createEnvelope(
+//        process.env.ACCOUNT_ID, {envelopeDefinition: envelope});
+//    console.log("envelope results ", results);
+// // Create the recipient view, the Signing Ceremony
+//    let viewRequest = makeRecipientViewRequest(request.body.name, request.body.email);
+//    results = await envelopesApi.createRecipientView(process.env.ACCOUNT_ID, results.envelopeId,
+//        {recipientViewRequest: viewRequest});
 
-   response.redirect(results.url);
+//    response.redirect(results.url);
+// });
+app.post("/form", async (req, res) => {
+    await checkToken(req);
+    let envelopesApi = getEnvelopesApi(req);
+    let envelope = makeEnvelope(req.body.name, req.body.email, req.body.company);
+
+    let results = await envelopesApi.createEnvelope(
+        process.env.ACCOUNT_ID, { envelopeDefinition: envelope }
+    );
+
+    console.log("Envelope created: ", results);
+
+    let viewRequest = makeRecipientViewRequest(req.body.name, req.body.email);
+    let signingResults = await envelopesApi.createRecipientView(process.env.ACCOUNT_ID, results.envelopeId, { recipientViewRequest: viewRequest });
+
+    res.redirect(`/success?envelopeId=${results.envelopeId}`); // Pass envelopeId to success page
 });
+
 
 function getEnvelopesApi(request) {
    let dsApiClient = new docusign.ApiClient();
@@ -141,8 +158,17 @@ app.get("/download/:envelopeId", async (req, res) => {
 });
 
 
-app.get("/success", (request, resposne) => {
-   resposne.send("Success");
+// app.get("/success", (request, resposne) => {
+//    resposne.send("Success");
+// });
+
+app.get("/success", (req, res) => {
+    let envelopeId = req.query.envelopeId; // Retrieve envelopeId
+    res.send(`
+        <h2>Signature Completed!</h2>
+        <p>Your document has been signed successfully.</p>
+        <a href="/download/${envelopeId}" download>Download Signed Document</a>
+    `);
 });
 
 // https://account-d.docusign.com/oauth/auth?response_type=code&scope=signature%20impersonation&client_id=(YOUR CLIENT ID)&redirect_uri=http://localhost:8000/

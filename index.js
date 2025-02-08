@@ -28,12 +28,6 @@ app.post("/form", async (request, response) => {
    results = await envelopesApi.createRecipientView(process.env.ACCOUNT_ID, results.envelopeId,
        {recipientViewRequest: viewRequest});
 
-let results2 = await envelopesApi.listDocuments(
-  process.env.ACCOUNT_ID,
-  results.envelopeId,
-  null
-);
-
    response.redirect(results.url);
 });
 

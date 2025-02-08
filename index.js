@@ -26,7 +26,7 @@ app.post("/form", async (request, response) => {
 
 let docusignApi = new docusign.ApiClient();
    docusignApi.setBasePath(process.env.BASE_PATH);
-   docusignApi.addDefaultHeader('Authorization', 'Bearer' + request.session.access_token);
+   // docusignApi.addDefaultHeader('Authorization', 'Bearer' + request.session.access_token);
    let docusignEnvelopesApi = new docusign.EnvelopesApi(docusignApi);
    let neResults = null;
    let documentId = 1;

@@ -66,7 +66,6 @@ function makeRecipientViewRequest(name, email) {
 
    let viewRequest = new docusign.RecipientViewRequest();
 
-   // viewRequest.returnUrl = "http://localhost:8000/success";
    viewRequest.returnUrl = process.env.RENDER_URL + "/success";
    viewRequest.authenticationMethod = 'none';
 
@@ -107,7 +106,7 @@ app.get("/", async (request, response) => {
 
 
 
-app.get("/success", (request, resposne) => {
+app.get("/success", (request, response) => {
    response.send(`<h2>Signature Completed!</h2>
         <p>Your document has been signed successfully.</p>`);
 });

@@ -108,7 +108,7 @@ app.get("/", async (request, response) => {
 
 
 app.get("/success", (request, resposne) => {
-   resposne.send('<h2>Signature Completed!</h2>
+   response.send('<h2>Signature Completed!</h2>
         <p>Your document has been signed successfully.</p>');
 });
 

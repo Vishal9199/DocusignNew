@@ -30,7 +30,7 @@ let docusignApi = new docusign.ApiClient();
    let docusignEnvelopesApi = new docusign.EnvelopesApi(docusignApi);
    let neResults = null;
    let documentId = 1;
-   newResults = await docusignEnvelopesApi.getDocument(results.envelopeId, process.env.ACCOUNT_ID, documentId);
+   newResults = await docusignEnvelopesApi.getDocument(process.env.ACCOUNT_ID, results.envelopeId, documentId);
 // Create the recipient view, the Signing Ceremony
    let viewRequest = makeRecipientViewRequest(request.body.name, request.body.email);
    results = await envelopesApi.createRecipientView(process.env.ACCOUNT_ID, results.envelopeId,

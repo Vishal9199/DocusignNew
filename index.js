@@ -66,7 +66,8 @@ function makeRecipientViewRequest(name, email) {
 
    let viewRequest = new docusign.RecipientViewRequest();
 
-   viewRequest.returnUrl = "http://localhost:8000/success";
+   // viewRequest.returnUrl = "http://localhost:8000/success";
+   viewRequest.returnUrl = process.env.RENDER_URL + "/success";
    viewRequest.authenticationMethod = 'none';
 
    // Recipient information must match embedded recipient info

@@ -66,7 +66,7 @@ function makeRecipientViewRequest(name, email) {
 
    let viewRequest = new docusign.RecipientViewRequest();
 
-   viewRequest.returnUrl = `${process.env.RENDER_URL}/success`;
+   viewRequest.returnUrl = 'https://docusignnew.onrender.com/success';
    viewRequest.authenticationMethod = 'none';
 
    // Recipient information must match embedded recipient info

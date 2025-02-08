@@ -24,13 +24,6 @@ app.post("/form", async (request, response) => {
        process.env.ACCOUNT_ID, {envelopeDefinition: envelope});
    console.log("envelope results ", results);
 
-let docusignApi = new docusign.ApiClient();
-   docusignApi.setBasePath(process.env.BASE_PATH);
-   // docusignApi.addDefaultHeader('Authorization', 'Bearer' + request.session.access_token);
-   let docusignEnvelopesApi = new docusign.EnvelopesApi(docusignApi);
-   let neResults = null;
-   let documentId = 1;
-   newResults = await docusignEnvelopesApi.getDocument(process.env.ACCOUNT_ID, results.envelopeId, documentId);
 // Create the recipient view, the Signing Ceremony
    let viewRequest = makeRecipientViewRequest(request.body.name, request.body.email);
    results = await envelopesApi.createRecipientView(process.env.ACCOUNT_ID, results.envelopeId,

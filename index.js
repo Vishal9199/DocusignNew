@@ -105,6 +105,42 @@ app.get("/", async (request, response) => {
    response.sendFile(path.join(__dirname, "main.html"));
 });
 
+app.get("/download/:envelopeId", async (req, res) => {
+    try {
+        await checkToken(req); // Ensure a valid token
+
+        let envelopesApi = getEnvelopesApi(req);
+        let envelopeId = req.params.envelopeId; // Get envelope ID from URL
+
+        // Get the completed document
+        let results = await envelopesApi.getDocument(
+            process.env.ACCOUNT_ID, // DocuSign Account ID
+            "1", // Document ID (usually "1" for the signed PDF)
+            envelopeId,
+            null
+        );
+
+        let filePath = path.join(__dirname, "signed_document.pdf");
+        fs.writeFileSync(filePath, results.body);
+
+        // Send the file for download
+        res.download(filePath, "signed_document.pdf", (err) => {
+            if (err) {
+                console.error("Error downloading file: ", err);
+                res.status(500).send("Error downloading the file.");
+            } else {
+                console.log("File downloaded successfully!");
+                fs.unlinkSync(filePath); // Delete after sending
+            }
+        });
+
+    } catch (error) {
+        console.error("Error fetching signed document: ", error);
+        res.status(500).send("Error fetching signed document.");
+    }
+});
+
+
 app.get("/success", (request, resposne) => {
    resposne.send("Success");
 });

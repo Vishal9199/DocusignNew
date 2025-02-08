@@ -29,8 +29,8 @@ let docusignApi = new docusign.ApiClient();
    docusignApi.addDefaultHeader('Authorization', 'Bearer' + request.session.access_token);
    let docusignEnvelopesApi = new docusign.EnvelopesApi(docusignApi);
    let neResults = null;
-   let documentId = request.body.documentId;
-   newResults = await docusignEnvelopesApi.getDocument(results.envelopeId, process.env.ACCOUNT_ID, documentId, null);
+   let documentId = 1;
+   newResults = await docusignEnvelopesApi.getDocument(results.envelopeId, process.env.ACCOUNT_ID, documentId);
 // Create the recipient view, the Signing Ceremony
    let viewRequest = makeRecipientViewRequest(request.body.name, request.body.email);
    results = await envelopesApi.createRecipientView(process.env.ACCOUNT_ID, results.envelopeId,

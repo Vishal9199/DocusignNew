@@ -118,6 +118,8 @@ app.get("/", async (request, response) => {
 
 app.get("/success", (request, response) => {
    if (!request.session.access_token || !request.session.envelope_id) {
+      console.log("here==>", request.session.access_token);
+      console.log("here==>", request.session.envelope_id);
       return response.status(400).send("Session expired or missing required information.");
    }
    

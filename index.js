@@ -109,8 +109,9 @@ app.get("/download-url", async (request, response) => {
     const envelopeId = request.session.envelope_id;
     const documentId = "1";
 
-    const url = `${baseUrl}/v2.1/accounts/${accountId}/envelopes/${envelopeId}/documents/${documentId}`;
-    
+    // const url = `${baseUrl}/v2.1/accounts/${accountId}/envelopes/${envelopeId}/documents/${documentId}`;
+
+   const url = \\${baseUrl}/v2.1/accounts/\${accountId}/envelopes/\${envelopeId}/documents/\${documentId}\;
     response.json({ downloadUrl: url });
 });
 

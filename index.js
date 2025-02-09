@@ -2,12 +2,14 @@ const express = require("express");
 const path = require("path");
 const bodyParser = require("body-parser");
 const dotenv = require("dotenv");
+const cors = require('cors');
 dotenv.config();
 const docusign = require("docusign-esign");
 const fs = require("fs");
 const session = require("express-session");
 
 const app = express();
+app.use(cors({}));
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(session({
    secret: "dfsf94835asda",

@@ -107,10 +107,12 @@ app.get("/", async (request, response) => {
 
 
 app.get("/success", (request, response) => {
-   response.send("Successfully Signed");
+   response.sendFile(path.join(__dirname, "success.html"));
 });
 
+
 // https://account-d.docusign.com/oauth/auth?response_type=code&scope=signature%20impersonation&client_id=(YOUR CLIENT ID)&redirect_uri=http://localhost:8000/
+
 
 app.listen(8000, () => {
    console.log("server has started", process.env.USER_ID);

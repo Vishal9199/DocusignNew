@@ -12,18 +12,25 @@ dotenv.config();
 
 const app = express();
 
-// Enable CORS for VBCS
+// ✅ Ensure session storage directory exists
+const sessionDir = "/var/tmp/sessions";
+if (!fs.existsSync(sessionDir)) {
+    fs.mkdirSync(sessionDir, { recursive: true });
+    console.log("✅ Created session storage directory:", sessionDir);
+}
+
+// ✅ CORS for VBCS integration
 app.use(cors({
-   origin: process.env.VBCS_URL || "*", // Replace with your VBCS domain if needed
+   origin: process.env.VBCS_URL || "*",
    credentials: true
 }));
 
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// ✅ Session configuration using file storage for persistence in Render
+// ✅ File-based session store (Render-compatible)
 app.use(session({
    store: new FileStore({
-      path: "/tmp/sessions", // Temporary storage for session persistence
+      path: sessionDir, // ✅ Persistent session storage
       ttl: 86400, // 1 day expiration
    }),
    secret: "dfsf94835asda",
@@ -31,35 +38,26 @@ app.use(session({
    saveUninitialized: false,
    cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // Secure only in production
-      sameSite: "none", // Required for cross-origin session persistence
-      maxAge: 1000 * 60 * 60 * 24 // 24 hours expiration
+      secure: true, // Must be true in production (Render uses HTTPS)
+      sameSite: "none", // Needed for cross-origin session persistence
+      maxAge: 1000 * 60 * 60 * 24, // 24 hours expiration
    }
 }));
 
-// ✅ Debugging middleware to log session details before requests
+// ✅ Debugging middleware
 app.use((req, res, next) => {
    console.log("Session before request:", req.session);
    next();
 });
 
-// Route to generate and send a document for signing
 app.post("/form", async (request, response) => {
    try {
-      // Ensure access token is valid
       await checkToken(request);
-
-      // Get the envelopes API
       let envelopesApi = getEnvelopesApi(request);
-
-      // Create the envelope definition
       let envelope = makeEnvelope(request.body.name, request.body.email, request.body.company);
-
-      // Create the envelope in DocuSign
       let results = await envelopesApi.createEnvelope(process.env.ACCOUNT_ID, { envelopeDefinition: envelope });
-      console.log("Envelope created:", results);
 
-      // Store envelope ID in session
+      console.log("Envelope created:", results);
       request.session.envelope_id = results.envelopeId;
 
       // ✅ Explicitly save session to persist data
@@ -68,11 +66,9 @@ app.post("/form", async (request, response) => {
          console.log("Session saved successfully:", request.session);
       });
 
-      // Create the recipient view (signing ceremony)
       let viewRequest = makeRecipientViewRequest(request.body.name, request.body.email);
       results = await envelopesApi.createRecipientView(process.env.ACCOUNT_ID, results.envelopeId, { recipientViewRequest: viewRequest });
 
-      // Redirect to DocuSign signing URL
       response.redirect(results.url);
    } catch (error) {
       console.error("Error in /form:", error);
@@ -96,12 +92,10 @@ function makeEnvelope(name, email, company) {
       value: company
    });
 
-   // Create tabs object
    let tabs = docusign.Tabs.constructFromObject({
       textTabs: [text],
    });
 
-   // Create signer object
    let signer1 = docusign.TemplateRole.constructFromObject({
       email: email,
       name: name,
@@ -111,7 +105,7 @@ function makeEnvelope(name, email, company) {
    });
 
    env.templateRoles = [signer1];
-   env.status = "sent"; // Sent for signing
+   env.status = "sent";
 
    return env;
 }
@@ -127,7 +121,6 @@ function makeRecipientViewRequest(name, email) {
    return viewRequest;
 }
 
-// ✅ Improved checkToken function to persist session data correctly
 async function checkToken(request) {
    console.log("Session before checking token:", request.session);
 
@@ -160,13 +153,6 @@ async function checkToken(request) {
    console.log("Session after token check:", request.session);
 }
 
-// Serve the main page
-app.get("/", async (request, response) => {
-   await checkToken(request);
-   response.sendFile(path.join(__dirname, "main.html"));
-});
-
-// Success page after signing
 app.get("/success", (request, response) => {
    console.log("Session before success page:", request.session);
 
@@ -176,13 +162,8 @@ app.get("/success", (request, response) => {
    }
 
    response.send(`
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Success</title>
-      </head>
+      <html>
+      <head><title>Success</title></head>
       <body>
           <h1>Successfully Signed!</h1>
           <p>Your document has been successfully signed using DocuSign.</p>
@@ -192,7 +173,6 @@ app.get("/success", (request, response) => {
    `);
 });
 
-// Start the server
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
    console.log(`Server started on port ${PORT}`);

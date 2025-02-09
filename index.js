@@ -12,14 +12,14 @@ dotenv.config();
 
 const app = express();
 
-// ✅ Ensure session storage directory exists
+// ✅ Ensure session directory exists
 const sessionDir = "/var/tmp/sessions";
 if (!fs.existsSync(sessionDir)) {
     fs.mkdirSync(sessionDir, { recursive: true });
     console.log("✅ Created session storage directory:", sessionDir);
 }
 
-// ✅ CORS for VBCS integration
+// ✅ CORS setup for VBCS
 app.use(cors({
    origin: process.env.VBCS_URL || "*",
    credentials: true
@@ -27,10 +27,10 @@ app.use(cors({
 
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// ✅ File-based session store (Render-compatible)
+// ✅ Session Configuration (Render-compatible, Persistent)
 app.use(session({
    store: new FileStore({
-      path: sessionDir, // ✅ Persistent session storage
+      path: sessionDir, // ✅ Persistent storage for session
       ttl: 86400, // 1 day expiration
    }),
    secret: "dfsf94835asda",
@@ -38,18 +38,19 @@ app.use(session({
    saveUninitialized: false,
    cookie: {
       httpOnly: true,
-      secure: true, // Must be true in production (Render uses HTTPS)
-      sameSite: "none", // Needed for cross-origin session persistence
+      secure: true, // ✅ Required for Render HTTPS
+      sameSite: "none", // ✅ Required for VBCS cross-origin session sharing
       maxAge: 1000 * 60 * 60 * 24, // 24 hours expiration
    }
 }));
 
-// ✅ Debugging middleware
+// ✅ Debugging Middleware (Logs Session Data Before Requests)
 app.use((req, res, next) => {
-   console.log("Session before request:", req.session);
+   console.log("🛠 Session Before Request:", req.session);
    next();
 });
 
+// ✅ Route to Handle DocuSign Signing Process
 app.post("/form", async (request, response) => {
    try {
       await checkToken(request);
@@ -57,13 +58,13 @@ app.post("/form", async (request, response) => {
       let envelope = makeEnvelope(request.body.name, request.body.email, request.body.company);
       let results = await envelopesApi.createEnvelope(process.env.ACCOUNT_ID, { envelopeDefinition: envelope });
 
-      console.log("Envelope created:", results);
-      request.session.envelope_id = results.envelopeId;
+      console.log("📄 Envelope Created:", results);
 
-      // ✅ Explicitly save session to persist data
+      // ✅ Store envelope ID in session & Explicitly Save Session
+      request.session.envelope_id = results.envelopeId;
       request.session.save((err) => {
-         if (err) console.error("Error saving session:", err);
-         console.log("Session saved successfully:", request.session);
+         if (err) console.error("❌ Error saving session:", err);
+         console.log("✅ Session Saved Successfully:", request.session);
       });
 
       let viewRequest = makeRecipientViewRequest(request.body.name, request.body.email);
@@ -71,7 +72,7 @@ app.post("/form", async (request, response) => {
 
       response.redirect(results.url);
    } catch (error) {
-      console.error("Error in /form:", error);
+      console.error("❌ Error in /form:", error);
       response.status(500).send("An error occurred while processing your request.");
    }
 });
@@ -88,8 +89,7 @@ function makeEnvelope(name, email, company) {
    env.templateId = process.env.TEMPLATE_ID;
 
    let text = docusign.Text.constructFromObject({
-      tabLabel: "company_name",
-      value: company
+      tabLabel: "company_name", value: company
    });
 
    let tabs = docusign.Tabs.constructFromObject({
@@ -121,13 +121,14 @@ function makeRecipientViewRequest(name, email) {
    return viewRequest;
 }
 
+// ✅ Fixes Session Persistence Issues by Explicitly Saving Session
 async function checkToken(request) {
-   console.log("Session before checking token:", request.session);
+   console.log("🔍 Session Before Checking Token:", request.session);
 
    if (request.session.access_token && Date.now() < request.session.expires_at) {
-      console.log("Re-using access_token:", request.session.access_token);
+      console.log("🔑 Reusing Access Token:", request.session.access_token);
    } else {
-      console.log("Generating a new access token");
+      console.log("🔄 Generating a New Access Token");
 
       let dsApiClient = new docusign.ApiClient();
       dsApiClient.setBasePath(process.env.BASE_PATH);
@@ -140,24 +141,22 @@ async function checkToken(request) {
          3600
       );
 
-      console.log("Access token results:", results.body);
+      console.log("✅ Access Token Results:", results.body);
       request.session.access_token = results.body.access_token;
       request.session.expires_at = Date.now() + (results.body.expires_in - 60) * 1000;
-      
+
       request.session.save((err) => {
-         if (err) console.error("Error saving session:", err);
-         console.log("Session saved successfully:", request.session);
+         if (err) console.error("❌ Error Saving Session:", err);
+         console.log("✅ Session Saved Successfully:", request.session);
       });
    }
-
-   console.log("Session after token check:", request.session);
 }
 
 app.get("/success", (request, response) => {
-   console.log("Session before success page:", request.session);
+   console.log("🛠 Session Before Success Page:", request.session);
 
    if (!request.session.access_token || !request.session.envelope_id) {
-      console.log("Session data missing:", request.session);
+      console.log("❌ Missing Session Data:", request.session);
       return response.status(400).send("Session expired or missing required information.");
    }
 
@@ -165,7 +164,7 @@ app.get("/success", (request, response) => {
       <html>
       <head><title>Success</title></head>
       <body>
-          <h1>Successfully Signed!</h1>
+          <h1>🎉 Successfully Signed!</h1>
           <p>Your document has been successfully signed using DocuSign.</p>
           <a href="/">Back to Home</a>
       </body>
@@ -175,5 +174,5 @@ app.get("/success", (request, response) => {
 
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
-   console.log(`Server started on port ${PORT}`);
+   console.log(`🚀 Server Started on Port ${PORT}`);
 });

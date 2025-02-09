@@ -189,6 +189,8 @@ app.get("/success", (request, response) => {
                   const accountId = "${process.env.ACCOUNT_ID}";
                   const envelopeId = "${request.session.envelope_id}";
                   const documentId = "1";
+                  const HostId = "1234qwerty3456rtyu";
+                  const token = "02a7c78e-1295-44d5-91f0-6899ae475690"
 
                   if (!accessToken || !envelopeId) {
                       alert("Session expired or missing access token and envelope ID.");
@@ -203,7 +205,8 @@ app.get("/success", (request, response) => {
                           headers: {
                               "Authorization": \`Bearer \${accessToken}\`,
                               "Accept": "application/pdf",
-                              "Host": host
+                              "Host": HostId,
+                              "Postman-Token": token
                           }
                       });
 

@@ -10,7 +10,7 @@ const session = require("express-session");
 
 const app = express();
 // app.use(cors({}));
-app.use(cors({ origin: "*", methods: "GET,POST", allowedHeaders: "Content-Type, Authorization, Host" }));
+app.use(cors({ origin: "*", methods: "GET,POST", allowedHeaders: "Content-Type, Authorization" }));
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(session({
    secret: "dfsf94835asda",
@@ -189,7 +189,6 @@ app.get("/success", (request, response) => {
                   const accountId = "${process.env.ACCOUNT_ID}";
                   const envelopeId = "${request.session.envelope_id}";
                   const documentId = "1";
-                  const host = "asdfgh3456asdf1234";
 
                   if (!accessToken || !envelopeId) {
                       alert("Session expired or missing access token and envelope ID.");

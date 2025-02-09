@@ -9,8 +9,8 @@ const fs = require("fs");
 const session = require("express-session");
 
 const app = express();
-// app.use(cors({}));
-app.use(cors({ origin: "*", methods: "GET,POST", allowedHeaders: "Content-Type, Authorization" }));
+app.use(cors({}));
+// app.use(cors({ origin: "*", methods: "GET,POST", allowedHeaders: "Content-Type, Authorization" }));
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(session({
    secret: "dfsf94835asda",

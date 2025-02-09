@@ -115,7 +115,7 @@ app.get("/download-url", async (request, response) => {
     response.json({ downloadUrl: url });
 });
 
-/ Success Page with Dynamic Download
+
 app.get("/success", (request, response) => {
     if (!request.session.access_token || !request.session.envelope_id) {
         return response.status(400).send("Session expired or missing required information.");

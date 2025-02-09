@@ -2,7 +2,7 @@ const express = require("express");
 const path = require("path");
 const bodyParser = require("body-parser");
 const dotenv = require("dotenv");
-const cors = require('cors');
+const cors = require("cors");
 const docusign = require("docusign-esign");
 const fs = require("fs");
 const session = require("express-session");
@@ -20,35 +20,46 @@ app.use(session({
    saveUninitialized: true,
    cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // set to true in production
+      secure: process.env.NODE_ENV === 'production', // Allow insecure cookies in dev
       maxAge: 1000 * 60 * 60 * 24, // 24 hours expiration
    }
 }));
 
+// Debug: Log session before processing requests
+app.use((req, res, next) => {
+   console.log("Session before request:", req.session);
+   next();
+});
+
 app.post("/form", async (request, response) => {
-   // Ensure access token is valid
-   await checkToken(request);
+   try {
+      // Ensure access token is valid
+      await checkToken(request);
 
-   // Get the envelopes API
-   let envelopesApi = getEnvelopesApi(request);
+      // Get the envelopes API
+      let envelopesApi = getEnvelopesApi(request);
 
-   // Create the envelope definition
-   let envelope = makeEnvelope(request.body.name, request.body.email, request.body.company);
+      // Create the envelope definition
+      let envelope = makeEnvelope(request.body.name, request.body.email, request.body.company);
 
-   // Create the envelope
-   let results = await envelopesApi.createEnvelope(process.env.ACCOUNT_ID, { envelopeDefinition: envelope });
-   console.log("Envelope created:", results);
+      // Create the envelope
+      let results = await envelopesApi.createEnvelope(process.env.ACCOUNT_ID, { envelopeDefinition: envelope });
+      console.log("Envelope created:", results);
 
-   // Store envelope ID in session
-   request.session.envelope_id = results.envelopeId;
-   console.log("Envelope ID stored in session:", request.session.envelope_id);
+      // Store envelope ID in session
+      request.session.envelope_id = results.envelopeId;
+      console.log("Envelope ID stored in session:", request.session.envelope_id);
 
-   // Create the recipient view (signing ceremony)
-   let viewRequest = makeRecipientViewRequest(request.body.name, request.body.email);
-   results = await envelopesApi.createRecipientView(process.env.ACCOUNT_ID, results.envelopeId, { recipientViewRequest: viewRequest });
+      // Create the recipient view (signing ceremony)
+      let viewRequest = makeRecipientViewRequest(request.body.name, request.body.email);
+      results = await envelopesApi.createRecipientView(process.env.ACCOUNT_ID, results.envelopeId, { recipientViewRequest: viewRequest });
 
-   // Redirect to the signing URL
-   response.redirect(results.url);
+      // Redirect to the signing URL
+      response.redirect(results.url);
+   } catch (error) {
+      console.error("Error in /form:", error);
+      response.status(500).send("An error occurred while processing your request.");
+   }
 });
 
 function getEnvelopesApi(request) {
@@ -89,7 +100,7 @@ function makeEnvelope(name, email, company) {
 
 function makeRecipientViewRequest(name, email) {
    let viewRequest = new docusign.RecipientViewRequest();
-   viewRequest.returnUrl = 'https://docusignnew.onrender.com/success'; // Ensure this is your actual return URL
+   viewRequest.returnUrl = 'https://docusignnew.onrender.com/success';
    viewRequest.authenticationMethod = 'none';
    viewRequest.email = email;
    viewRequest.userName = name;
@@ -99,7 +110,8 @@ function makeRecipientViewRequest(name, email) {
 }
 
 async function checkToken(request) {
-   // Check if the access token is still valid
+   console.log("Session before checking token:", request.session);
+
    if (request.session.access_token && Date.now() < request.session.expires_at) {
       console.log("Re-using access_token:", request.session.access_token);
    } else {
@@ -118,9 +130,11 @@ async function checkToken(request) {
 
       console.log("Access token results:", results.body);
       request.session.access_token = results.body.access_token;
-      request.session.expires_at = Date.now() + (results.body.expires_in - 60) * 1000; // Subtract 60 seconds to ensure expiration before it really happens
+      request.session.expires_at = Date.now() + (results.body.expires_in - 60) * 1000;
       console.log("Access token stored in session:", request.session.access_token);
    }
+
+   console.log("Session after token check:", request.session);
 }
 
 // Serve the main page
@@ -131,6 +145,8 @@ app.get("/", async (request, response) => {
 
 // Success page after signing
 app.get("/success", (request, response) => {
+   console.log("Session data before success page:", request.session);
+
    if (!request.session.access_token || !request.session.envelope_id) {
       console.log("Session data missing:", request.session);
       return response.status(400).send("Session expired or missing required information.");
@@ -194,51 +210,7 @@ app.get("/success", (request, response) => {
               <h1>Successfully Signed!</h1>
               <p>Your document has been successfully signed using DocuSign.</p>
               <a href="/" class="btn">Back to Home</a>
-              <button class="btn" onclick="downloadDocument()">Download Signed Document</button>
           </div>
-
-          <script>
-              async function downloadDocument() {
-                  const accessToken = "${request.session.access_token}";
-                  const baseUrl = "${process.env.BASE_PATH}";
-                  const accountId = "${process.env.ACCOUNT_ID}";
-                  const envelopeId = "${request.session.envelope_id}";
-                  const documentId = "1"; // Specify the document ID to download
-
-                  if (!accessToken || !envelopeId) {
-                      alert("Session expired or missing access token and envelope ID.");
-                      return;
-                  }
-
-                  const url = \`\${baseUrl}/v2.1/accounts/\${accountId}/envelopes/\${envelopeId}/documents/\${documentId}\`;
-
-                  try {
-                      const response = await fetch(url, {
-                          method: "GET",
-                          headers: {
-                              "Authorization": \`Bearer \${accessToken}\`,
-                              "Accept": "application/pdf"
-                          }
-                      });
-
-                      if (!response.ok) {
-                          throw new Error(\`Error: \${response.statusText}\`);
-                      }
-
-                      const blob = await response.blob();
-                      const downloadUrl = window.URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      a.href = downloadUrl;
-                      a.download = "signed_document.pdf";
-                      document.body.appendChild(a);
-                      a.click();
-                      a.remove();
-                  } catch (error) {
-                      console.error("Error downloading document:", error);
-                      alert("Failed to download document.");
-                  }
-              }
-          </script>
       </body>
       </html>
    `);

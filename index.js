@@ -3,36 +3,51 @@ const path = require("path");
 const bodyParser = require("body-parser");
 const dotenv = require("dotenv");
 const cors = require('cors');
-dotenv.config();
 const docusign = require("docusign-esign");
 const fs = require("fs");
 const session = require("express-session");
 
+dotenv.config();
+
 const app = express();
+
+// Session configuration
 app.use(cors({}));
-// app.use(cors({ origin: "*", methods: "GET,POST", allowedHeaders: "Content-Type, Authorization" }));
-app.use(bodyParser.urlencoded({extended: true}));
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use(session({
    secret: "dfsf94835asda",
    resave: true,
    saveUninitialized: true,
+   cookie: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // set to true in production
+      maxAge: 1000 * 60 * 60 * 24, // 24 hours expiration
+   }
 }));
 
 app.post("/form", async (request, response) => {
+   // Ensure access token is valid
    await checkToken(request);
+
+   // Get the envelopes API
    let envelopesApi = getEnvelopesApi(request);
+
+   // Create the envelope definition
    let envelope = makeEnvelope(request.body.name, request.body.email, request.body.company);
 
-   let results = await envelopesApi.createEnvelope(
-       process.env.ACCOUNT_ID, {envelopeDefinition: envelope});
-   console.log("envelope results ", results);
+   // Create the envelope
+   let results = await envelopesApi.createEnvelope(process.env.ACCOUNT_ID, { envelopeDefinition: envelope });
+   console.log("Envelope created:", results);
+
    // Store envelope ID in session
    request.session.envelope_id = results.envelopeId;
-// Create the recipient view, the Signing Ceremony
-   let viewRequest = makeRecipientViewRequest(request.body.name, request.body.email);
-   results = await envelopesApi.createRecipientView(process.env.ACCOUNT_ID, results.envelopeId,
-       {recipientViewRequest: viewRequest});
+   console.log("Envelope ID stored in session:", request.session.envelope_id);
 
+   // Create the recipient view (signing ceremony)
+   let viewRequest = makeRecipientViewRequest(request.body.name, request.body.email);
+   results = await envelopesApi.createRecipientView(process.env.ACCOUNT_ID, results.envelopeId, { recipientViewRequest: viewRequest });
+
+   // Redirect to the signing URL
    response.redirect(results.url);
 });
 
@@ -43,86 +58,84 @@ function getEnvelopesApi(request) {
    return new docusign.EnvelopesApi(dsApiClient);
 }
 
-function makeEnvelope(name, email, company){
+function makeEnvelope(name, email, company) {
    let env = new docusign.EnvelopeDefinition();
    env.templateId = process.env.TEMPLATE_ID;
-   let text = docusign.Text.constructFromObject({
-      tabLabel: "company_name", value: company});
 
-   // Pull together the existing and new tabs in a Tabs object:
+   let text = docusign.Text.constructFromObject({
+      tabLabel: "company_name",
+      value: company
+   });
+
+   // Create tabs object
    let tabs = docusign.Tabs.constructFromObject({
       textTabs: [text],
    });
 
+   // Create signer object
    let signer1 = docusign.TemplateRole.constructFromObject({
       email: email,
       name: name,
       tabs: tabs,
       clientUserId: process.env.CLIENT_USER_ID,
-      roleName: 'Team Member'});
+      roleName: 'Team Member'
+   });
 
    env.templateRoles = [signer1];
-   env.status = "sent";
+   env.status = "sent"; // Sent for signing
 
    return env;
 }
 
 function makeRecipientViewRequest(name, email) {
-
    let viewRequest = new docusign.RecipientViewRequest();
-
-   viewRequest.returnUrl = 'https://docusignnew.onrender.com/success';
+   viewRequest.returnUrl = 'https://docusignnew.onrender.com/success'; // Ensure this is your actual return URL
    viewRequest.authenticationMethod = 'none';
-
-   // Recipient information must match embedded recipient info
-   // we used to create the envelope.
    viewRequest.email = email;
    viewRequest.userName = name;
    viewRequest.clientUserId = process.env.CLIENT_USER_ID;
 
-   return viewRequest
+   return viewRequest;
 }
 
-
 async function checkToken(request) {
+   // Check if the access token is still valid
    if (request.session.access_token && Date.now() < request.session.expires_at) {
-      console.log("re-using access_token ", request.session.access_token);
+      console.log("Re-using access_token:", request.session.access_token);
    } else {
-      console.log("generating a new access token");
+      console.log("Generating a new access token");
+
       let dsApiClient = new docusign.ApiClient();
       dsApiClient.setBasePath(process.env.BASE_PATH);
+
       const results = await dsApiClient.requestJWTUserToken(
-          process.env.INTEGRATION_KEY,
-          process.env.USER_ID,
-          "signature",
-          fs.readFileSync(path.join(__dirname, "private.key")),
-          3600
+         process.env.INTEGRATION_KEY,
+         process.env.USER_ID,
+         "signature",
+         fs.readFileSync(path.join(__dirname, "private.key")),
+         3600
       );
-      console.log(results.body);
+
+      console.log("Access token results:", results.body);
       request.session.access_token = results.body.access_token;
-      request.session.expires_at = Date.now() + (results.body.expires_in - 60) * 1000;
+      request.session.expires_at = Date.now() + (results.body.expires_in - 60) * 1000; // Subtract 60 seconds to ensure expiration before it really happens
+      console.log("Access token stored in session:", request.session.access_token);
    }
 }
 
+// Serve the main page
 app.get("/", async (request, response) => {
    await checkToken(request);
    response.sendFile(path.join(__dirname, "main.html"));
 });
 
-
-
-// app.get("/success", (request, response) => {
-//    response.sendFile(path.join(__dirname, "success.html"));
-// });
-
-
+// Success page after signing
 app.get("/success", (request, response) => {
    if (!request.session.access_token || !request.session.envelope_id) {
-      console.log("here==>", request.session.access_token);
-      console.log("here==>", request.session.envelope_id);
+      console.log("Session data missing:", request.session);
       return response.status(400).send("Session expired or missing required information.");
    }
-   
+
    response.send(`
       <!DOCTYPE html>
       <html lang="en">
@@ -190,7 +203,7 @@ app.get("/success", (request, response) => {
                   const baseUrl = "${process.env.BASE_PATH}";
                   const accountId = "${process.env.ACCOUNT_ID}";
                   const envelopeId = "${request.session.envelope_id}";
-                  const documentId = "1";
+                  const documentId = "1"; // Specify the document ID to download
 
                   if (!accessToken || !envelopeId) {
                       alert("Session expired or missing access token and envelope ID.");
@@ -231,11 +244,7 @@ app.get("/success", (request, response) => {
    `);
 });
 
-
-
-// https://account-d.docusign.com/oauth/auth?response_type=code&scope=signature%20impersonation&client_id=(YOUR CLIENT ID)&redirect_uri=http://localhost:8000/
-
-
+// Start the server
 app.listen(8000, () => {
-   console.log("server has started", process.env.USER_ID);
+   console.log("Server has started on port 8000");
 });

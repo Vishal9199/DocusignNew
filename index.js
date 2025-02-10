@@ -6,14 +6,17 @@ const cors = require("cors");
 const docusign = require("docusign-esign");
 const fs = require("fs");
 const session = require("express-session");
+const multer = require("multer");
 
 dotenv.config();
 const app = express();
+const upload = multer({ dest: "uploads/" });  // Temporary directory for uploaded files
 
 // CORS Configuration
 app.use(cors({ origin: "*", methods: "GET,POST", allowedHeaders: "Content-Type, Authorization" }));
 
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
 app.use(session({
    secret: "dfsf94835asda",
    resave: true,
@@ -114,6 +117,79 @@ function makeEnvelope(name, email, company) {
    return env;
 }
 
+// Endpoint for receiving uploaded PDF file from VBCS
+app.post("/upload-pdf", upload.single("file"), async (req, res) => {
+  const filePath = path.join(__dirname, "uploads", req.file.filename);
+
+  try {
+    // Now send this file to DocuSign API
+    const envelope = await createEnvelope(req.file.originalname, filePath);
+    res.status(200).json({ message: "Envelope sent for signing", envelopeId: envelope.envelopeId });
+  } catch (error) {
+    console.error("Error sending envelope:", error);
+    res.status(500).json({ message: "Error sending envelope", error: error.message });
+  }
+});
+
+// Function to create a DocuSign envelope and send document for signing
+async function createEnvelope(fileName, filePath) {
+  try {
+    const url = `${BASE_PATH}/v2.1/accounts/${ACCOUNT_ID}/envelopes`;
+    const documentBase64 = require("fs").readFileSync(filePath, { encoding: "base64" });
+
+    const body = {
+      status: "sent",
+      recipients: {
+        signers: [
+          {
+            email: "signer@example.com",  // Replace with actual signer email
+            name: "Signer Name",          // Replace with actual signer name
+            recipientId: "1",
+            routingOrder: "1",
+            tabs: {
+              signHereTabs: [
+                {
+                  xPosition: "100",
+                  yPosition: "100",
+                  documentId: "1",
+                  pageNumber: "1",
+                  tabLabel: "SignHereTab",
+                },
+              ],
+            },
+          },
+        ],
+      },
+      documents: [
+        {
+          documentBase64: documentBase64,
+          documentId: "1",
+          fileExtension: "pdf",
+          name: fileName,
+        },
+      ],
+    };
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${ACCESS_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error: ${response.statusText}`);
+    }
+
+    const envelope = await response.json();
+    return envelope;
+
+  } catch (error) {
+    throw new Error(`Error creating envelope: ${error.message}`);
+  }
+}
 // Function to create recipient view request
 function makeRecipientViewRequest(name, email) {
    let viewRequest = new docusign.RecipientViewRequest();

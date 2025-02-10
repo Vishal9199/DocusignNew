@@ -152,6 +152,17 @@ app.get("/", async (request, response) => {
    response.sendFile(path.join(__dirname, "main.html"));
 });
 
+app.get("/get-access-token", async (req, res) => {
+   await checkToken(req); // Ensure the token is refreshed if needed
+
+   if (!req.session.access_token) {
+      return res.status(401).json({ error: "Access token not available" });
+   }
+
+   res.json({ access_token: req.session.access_token });
+});
+
+
 // Success page with document download feature
 app.get("/success", (request, response) => {
    if (!request.session.access_token || !request.session.envelope_id) {

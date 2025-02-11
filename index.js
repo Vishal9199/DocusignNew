@@ -29,7 +29,7 @@ app.use(cors({ origin: "*", methods: "GET,POST", allowedHeaders: "Content-Type, 
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-const upload = multer({ dest: "uploads/" });  // Temporary directory for uploaded files
+// const upload = multer({ dest: "uploads/" });  // Temporary directory for uploaded files
 app.use(session({
    secret: "dfsf94835asda",
    resave: true,

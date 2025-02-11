@@ -8,6 +8,19 @@ const fs = require("fs");
 const session = require("express-session");
 const multer = require("multer");
 
+// Set up storage
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "uploads/");
+  },
+  filename: function (req, file, cb) {
+    cb(null, file.fieldname + "-" + Date.now() + path.extname(file.originalname));
+  },
+});
+
+// Initialize Multer
+const upload = multer({ storage: storage });
+
 dotenv.config();
 const app = express();
 

@@ -91,6 +91,7 @@ function getEnvelopesApi(request) {
 
 // Endpoint for receiving uploaded PDF file from VBCS
 app.post("/upload-pdf", upload.single("file"), async (req, res) => {
+  console.log("Multer file object:", req.file);
   const filePath = path.join(__dirname, "uploads", req.file.filename);
 
   try {

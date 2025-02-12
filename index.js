@@ -134,10 +134,14 @@ async function checkToken(request) {
       let dsApiClient = new docusign.ApiClient();
       dsApiClient.setBasePath(process.env.BASE_PATH);
       console.log("Checkpoint1");
+      const privateKeyPath = path.join(__dirname, "private.key");
+      if (!fs.existsSync(privateKeyPath)) {
+          throw new Error("Private key file not found: " + privateKeyPath);
+      }
       const results = await dsApiClient.requestJWTUserToken(
          process.env.INTEGRATION_KEY,
          process.env.USER_ID,
-         "signature",
+         ["signature", "impersonation"],
          fs.readFileSync(path.join(__dirname, "private.key")),
          3600
       );

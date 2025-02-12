@@ -37,6 +37,7 @@ app.post("/form", async (request, response) => {
    results = await envelopesApi.createRecipientView(process.env.ACCOUNT_ID, results.envelopeId, { recipientViewRequest: viewRequest });
 
    response.redirect(results.url);
+   console.log("Signing URL: ", results.url);
 });
 
 // API to download signed document (Solves CORS issue)
